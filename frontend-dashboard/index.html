@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PromptGuard — Enterprise AI Security Dashboard</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      height: 100%;
+      overflow: hidden;
+      background: #0d1117;
+      font-family: 'Inter', sans-serif;
+      color: #c9d1d9;
+    }
+
+    #root {
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── scrollbars ── */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, .03);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #484f58;
+    }
+
+    /* ── animations ── */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    @keyframes livePulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1)
+      }
+
+      50% {
+        opacity: .3;
+        transform: scale(.65)
+      }
+    }
+
+    @keyframes countIn {
+      from {
+        opacity: 0;
+        transform: scale(.8) translateY(8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0)
+      }
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: -200% 0
+      }
+
+      100% {
+        background-position: 200% 0
+      }
+    }
+
+    .fade-up {
+      animation: fadeUp .4s cubic-bezier(.22, 1, .36, 1) both;
+    }
+
+    .d1 {
+      animation-delay: 40ms
+    }
+
+    .d2 {
+      animation-delay: 80ms
+    }
+
+    .d3 {
+      animation-delay: 120ms
+    }
+
+    .d4 {
+      animation-delay: 160ms
+    }
+
+    .d5 {
+      animation-delay: 200ms
+    }
+
+    .d6 {
+      animation-delay: 240ms
+    }
+
+    .d7 {
+      animation-delay: 280ms
+    }
+
+    .sp {
+      display: inline-block;
+      animation: spin .75s linear infinite;
+    }
+
+    .live-dot {
+      animation: livePulse 2s ease infinite;
+    }
+
+    /* ── cards ── */
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+    }
+
+    .card-hover {
+      transition: border-color .18s, box-shadow .18s, transform .18s;
+    }
+
+    .card-hover:hover {
+      border-color: #484f58;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, .5);
+      transform: translateY(-1px);
+    }
+
+    /* ── stat card ── */
+    .stat-card {
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 85% 15%, var(--sc-glow, rgba(255, 255, 255, .04)) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* ── nav tabs ── */
+    .nav-tab {
+      transition: all .14s;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: transparent;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 14px;
+      color: #8b949e;
+    }
+
+    .nav-tab:hover {
+      background: rgba(255, 255, 255, .06);
+      color: #c9d1d9;
+    }
+
+    .nav-tab.active {
+      background: rgba(88, 166, 255, .12);
+      color: #58a6ff;
+      border-color: rgba(88, 166, 255, .25);
+    }
+
+    /* ── table rows ── */
+    .tr-hover {
+      transition: background .1s;
+    }
+
+    .tr-hover:hover {
+      background: rgba(255, 255, 255, .03) !important;
+    }
+
+    /* ── scrollable inner ── */
+    .scroll-y {
+      overflow-y: auto;
+    }
+
+    .scroll-y::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .scroll-y::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 4px;
+    }
+
+    /* ── badge ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .3px;
+    }
+
+    /* ── button ── */
+    .btn {
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      transition: all .18s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #1f6feb, #388bfd);
+      color: #fff;
+      box-shadow: 0 0 16px rgba(31, 111, 235, .3);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 0 24px rgba(56, 139, 253, .4);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, .04);
+      border: 1px solid #30363d;
+      color: #8b949e;
+    }
+
+    .btn-ghost:hover {
+      border-color: #58a6ff;
+      color: #58a6ff;
+    }
+
+    .btn-danger {
+      background: rgba(218, 54, 51, .08);
+      border: 1px solid rgba(218, 54, 51, .25);
+      color: #f85149;
+    }
+
+    .btn-danger:hover {
+      background: rgba(218, 54, 51, .15);
+    }
+
+    /* ── gradient text ── */
+    .grad {
+      background: linear-gradient(135deg, #58a6ff, #a371f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── compliance pill ── */
+    .comply-ok {
+      background: rgba(46, 160, 67, .1);
+      border: 1px solid rgba(46, 160, 67, .3);
+      color: #3fb950;
+    }
+
+    .comply-warn {
+      background: rgba(187, 128, 9, .1);
+      border: 1px solid rgba(187, 128, 9, .3);
+      color: #d29922;
+    }
+
+    .comply-bad {
+      background: rgba(218, 54, 51, .1);
+      border: 1px solid rgba(218, 54, 51, .3);
+      color: #f85149;
+    }
+
+    /* ── risk legend pill ── */
+    .risk-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef, memo } = React;
+    const API = "http://localhost:8080";
+
+    /* ── helpers ── */
+    const nv = v => Number(v) || 0;
+    const fmtAge = ts => {
+      try {
+        const d = Math.floor((Date.now() - new Date(ts)) / 60000);
+        if (d < 1) return "Just now"; if (d < 60) return `${d}m ago`;
+        const h = Math.floor(d / 60); if (h < 24) return `${h}h ago`;
+        const dy = Math.floor(h / 24); return dy === 1 ? "Yesterday" : `${dy}d ago`;
+      } catch { return "—"; }
+    };
+    const AC = {
+      ALLOW: { l: "Safe", bg: "rgba(46,160,67,.12)", bd: "rgba(46,160,67,.35)", tx: "#3fb950" },
+      REDACT: { l: "Redacted", bg: "rgba(187,128,9,.12)", bd: "rgba(187,128,9,.35)", tx: "#d29922" },
+      BLOCK: { l: "Blocked", bg: "rgba(218,54,51,.12)", bd: "rgba(218,54,51,.35)", tx: "#f85149" },
+      ALERT: { l: "Critical", bg: "rgba(163,113,247,.12)", bd: "rgba(163,113,247,.35)", tx: "#a371f7" },
+    };
+
+    function useBreakpoint() {
+      const [w, setW] = useState(() => window.innerWidth);
+      useEffect(() => { const fn = () => setW(window.innerWidth); window.addEventListener("resize", fn); return () => window.removeEventListener("resize", fn); }, []);
+      return { w, isDesktop: w >= 1100, isTablet: w >= 641 && w < 1100, isMobile: w < 641 };
+    }
+
+    const LiveClock = memo(function LiveClock() {
+      const [t, setT] = useState(() => new Date().toLocaleTimeString());
+      useEffect(() => { const id = setInterval(() => setT(new Date().toLocaleTimeString()), 1000); return () => clearInterval(id); }, []);
+      return <span style={{ fontSize: 11, color: "#484f58", fontFamily: "'JetBrains Mono',monospace" }}>{t}</span>;
+    });
+
+    /* ══════════════════════════════════
+       LOGIN
+    ══════════════════════════════════ */
+    function Login({ onLogin }) {
+      const [users, setUsers] = useState([]);
+      const [sel, setSel] = useState("");
+      const [loading, setLoading] = useState(true);
+      const [busy, setBusy] = useState(false);
+      const [err, setErr] = useState("");
+      useEffect(() => {
+        fetch(`${API}/api/analytics/users`).then(r => r.json())
+          .then(d => { setUsers(Array.isArray(d) ? d : []); setLoading(false); })
+          .catch(() => { setErr("Cannot connect to backend at localhost:8080"); setLoading(false); });
+      }, []);
+      const go = async () => {
+        if (!sel) { setErr("Select an account"); return; }
+        setBusy(true); setErr("");
+        try {
+          const r = await fetch(`${API}/api/v1/users/${sel}/role`);
+          const d = await r.json();
+          const u = users.find(x => x.user_id === sel);
+          onLogin({ userId: sel, role: d.role || "USER", name: u?.display_name || sel });
+        } catch { setErr("Verification failed. Is backend running?"); }
+        setBusy(false);
+      };
+      return (
+        <div style={{
+          flex: 1, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+          background: "radial-gradient(ellipse 70% 40% at 50% 0%,rgba(31,111,235,.1),transparent 65%),#0d1117", padding: 24
+        }}>
+          <div style={{ width: "100%", maxWidth: 420 }} className="fade-up">
+            <div style={{ textAlign: "center", marginBottom: 32 }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                <div style={{
+                  width: 50, height: 50, borderRadius: 12, background: "linear-gradient(135deg,#1f6feb,#a371f7)",
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26,
+                  boxShadow: "0 0 32px rgba(31,111,235,.4)"
+                }}>🛡️</div>
+                <div style={{ textAlign: "left" }}>
+                  <div className="grad" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.5px" }}>PromptGuard</div>
+                  <div style={{ fontSize: 9, color: "#388bfd", letterSpacing: "3px", fontWeight: 700, marginTop: 2 }}>ENTERPRISE AI SECURITY</div>
+                </div>
+              </div>
+              <p style={{ fontSize: 13, color: "#6e7681", lineHeight: 1.6 }}>Intelligent prompt security for enterprise AI workflows</p>
+            </div>
+            <div className="card" style={{ padding: "28px 24px", boxShadow: "0 24px 64px rgba(0,0,0,.7)" }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#e6edf3", marginBottom: 4 }}>Sign in to continue</div>
+              <div style={{ fontSize: 12, color: "#6e7681", marginBottom: 24 }}>Select your employee account</div>
+              {loading ? (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#6e7681" }}>
+                  <div className="sp" style={{ width: 24, height: 24, border: "2px solid #21262d", borderTopColor: "#388bfd", borderRadius: "50%", margin: "0 auto 12px" }} />
+                  <div style={{ fontSize: 12 }}>Loading accounts…</div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+                    {users.map(u => {
+                      const isA = u.role === "ADMIN", act = sel === u.user_id;
+                      return (
+                        <div key={u.user_id} onClick={() => { setSel(u.user_id); setErr(""); }}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between",
+                            padding: "12px 14px", borderRadius: 8, cursor: "pointer",
+                            background: act ? "rgba(31,111,235,.1)" : "rgba(255,255,255,.02)",
+                            border: `1.5px solid ${act ? "rgba(56,139,253,.5)" : "#30363d"}`, transition: "all .14s"
+                          }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{
+                              width: 36, height: 36, borderRadius: 8,
+                              background: isA ? "linear-gradient(135deg,#6e40c9,#a371f7)" : "linear-gradient(135deg,#1f6feb,#388bfd)",
+                              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18
+                            }}>
+                              {isA ? "👑" : "👤"}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#e6edf3" }}>{u.display_name || u.user_id}</div>
+                              <div style={{ fontSize: 11, color: "#6e7681", fontFamily: "'JetBrains Mono',monospace" }}>{u.user_id}</div>
+                            </div>
+                          </div>
+                          <span style={{
+                            fontSize: 9, fontWeight: 700, padding: "3px 9px", borderRadius: 20, letterSpacing: "1.5px",
+                            background: isA ? "rgba(163,113,247,.15)" : "rgba(56,139,253,.12)",
+                            color: isA ? "#a371f7" : "#58a6ff",
+                            border: `1px solid ${isA ? "rgba(163,113,247,.3)" : "rgba(56,139,253,.25)"}`
+                          }}>{u.role}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {err && <div style={{
+                    color: "#f85149", fontSize: 12, background: "rgba(218,54,51,.08)", border: "1px solid rgba(218,54,51,.25)",
+                    borderRadius: 7, padding: "9px 13px", marginBottom: 14, display: "flex", alignItems: "center", gap: 8
+                  }}>⚠️ {err}</div>}
+                  <button className="btn btn-primary" onClick={go} disabled={!sel || busy}
+                    style={{
+                      width: "100%", padding: "12px", fontSize: 14,
+                      background: sel ? "linear-gradient(135deg,#1f6feb,#388bfd)" : "rgba(255,255,255,.04)",
+                      boxShadow: sel ? "0 0 20px rgba(56,139,253,.35)" : "none", opacity: sel ? 1 : .4
+                    }}>
+                    {busy ? "⏳ Verifying…" : "Sign In →"}
+                  </button>
+                </>
+              )}
+            </div>
+            <div style={{ textAlign: "center", fontSize: 11, color: "#21262d", marginTop: 14 }}>PromptGuard v1.0 · Enterprise AI Security</div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════
+       STAT CARD
+    ══════════════════════════════════ */
+    const StatCard = memo(function StatCard({ label, value, icon, accentColor, borderColor, bgColor, sub, delay = 0 }) {
+      return (
+        <div className={`card card-hover stat-card fade-up d${delay}`}
+          style={{
+            "--sc-glow": `${accentColor}20`,
+            padding: "16px 18px 14px",
+            background: bgColor || "#161b22",
+            borderBottom: `2px solid ${borderColor || accentColor}`
+          }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#6e7681", letterSpacing: ".8px", textTransform: "uppercase", lineHeight: 1 }}>{label}</span>
+            <span style={{ fontSize: 18 }}>{icon}</span>
+          </div>
+          <div style={{
+            fontSize: 38, fontWeight: 800, color: "#e6edf3", lineHeight: 1, letterSpacing: "-1.5px",
+            animation: `countIn .55s cubic-bezier(.22,1,.36,1) ${delay * 55}ms both`
+          }}>
+            {value ?? 0}
+          </div>
+          {sub && <div style={{ fontSize: 11, color: accentColor, marginTop: 8, fontWeight: 500, opacity: .9 }}>{sub}</div>}
+        </div>
+      );
+    });
+
+    /* ══════════════════════════════════
+       LINE CHART
+    ══════════════════════════════════ */
+    const LineChart = memo(function LineChart({ logs }) {
+      const ref = useRef(), inst = useRef();
+      useEffect(() => {
+        if (!ref.current) return;
+        const days = [], labels = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(); d.setDate(d.getDate() - i);
+          days.push(d.toDateString());
+          labels.push(d.toLocaleDateString([], { month: "short", day: "numeric" }));
+        }
+        const bkt = act => days.map(ds => logs.filter(l => { try { return new Date(l.timestamp || l.created_at).toDateString() === ds && l.action === act; } catch { return false; } }).length);
+        if (inst.current) { try { inst.current.destroy(); } catch { } }
+        inst.current = new Chart(ref.current, {
+          type: "line",
+          data: {
+            labels, datasets: [
+              { label: "Safe", data: bkt("ALLOW"), borderColor: "#3fb950", backgroundColor: "rgba(63,185,80,.08)", tension: .45, pointRadius: 5, pointBackgroundColor: "#3fb950", pointBorderColor: "#0d1117", pointBorderWidth: 2, fill: true, borderWidth: 2.5 },
+              { label: "Redacted", data: bkt("REDACT"), borderColor: "#d29922", backgroundColor: "rgba(210,153,34,.08)", tension: .45, pointRadius: 5, pointBackgroundColor: "#d29922", pointBorderColor: "#0d1117", pointBorderWidth: 2, fill: true, borderWidth: 2.5 },
+              { label: "Blocked", data: bkt("BLOCK"), borderColor: "#f85149", backgroundColor: "rgba(248,81,73,.08)", tension: .45, pointRadius: 5, pointBackgroundColor: "#f85149", pointBorderColor: "#0d1117", pointBorderWidth: 2, fill: true, borderWidth: 2.5 },
+              { label: "Critical", data: bkt("ALERT"), borderColor: "#a371f7", backgroundColor: "rgba(163,113,247,.08)", tension: .45, pointRadius: 5, pointBackgroundColor: "#a371f7", pointBorderColor: "#0d1117", pointBorderWidth: 2, fill: true, borderWidth: 2.5 },
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              legend: { position: "bottom", labels: { color: "#8b949e", boxWidth: 10, padding: 18, font: { size: 11, family: "Inter" }, usePointStyle: true, pointStyleWidth: 10 } },
+              tooltip: { backgroundColor: "#1c2128", titleColor: "#e6edf3", bodyColor: "#8b949e", borderColor: "#30363d", borderWidth: 1, cornerRadius: 8, padding: 10, titleFont: { family: "Inter", weight: "600" }, bodyFont: { family: "Inter" } },
+            },
+            scales: {
+              x: { grid: { color: "rgba(255,255,255,.04)" }, ticks: { color: "#484f58", font: { size: 11, family: "Inter" } } },
+              y: { grid: { color: "rgba(255,255,255,.04)" }, ticks: { color: "#484f58", font: { size: 11, family: "Inter" } }, beginAtZero: true },
+            },
+          },
+        });
+        return () => { try { inst.current?.destroy(); } catch { } };
+      }, [logs]);
+      return <canvas ref={ref} style={{ width: "100%", height: "100%" }} />;
+    });
+
+    /* ══════════════════════════════════
+       DONUT CHART — bigger, clearer
+    ══════════════════════════════════ */
+    const DonutChart = memo(function DonutChart({ data }) {
+      const ref = useRef(), inst = useRef();
+      useEffect(() => {
+        if (!ref.current || !data?.length) return;
+        const COLS = ["#58a6ff", "#f85149", "#d29922", "#3fb950", "#a371f7", "#fb8f44", "#39d353", "#e879f9"];
+        const total = data.reduce((s, d) => s + nv(d.count), 0);
+        const pctPlug = {
+          id: "pct", afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            chart.data.datasets.forEach((ds, di) => {
+              chart.getDatasetMeta(di).data.forEach((arc, i) => {
+                const pct = total > 0 ? Math.round(nv(ds.data[i]) / total * 100) : 0;
+                if (pct < 6) return;
+                const mid = (arc.startAngle + arc.endAngle) / 2;
+                const r = (arc.innerRadius + arc.outerRadius) / 2;
+                ctx.save(); ctx.fillStyle = "#fff";
+                ctx.font = "bold 12px 'Inter',sans-serif";
+                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(`${pct}%`, arc.x + r * Math.cos(mid), arc.y + r * Math.sin(mid));
+                ctx.restore();
+              });
+            });
+          }
+        };
+        if (inst.current) { try { inst.current.destroy(); } catch { } }
+        inst.current = new Chart(ref.current, {
+          type: "doughnut",
+          data: {
+            labels: data.map(d => d.riskType || "Unknown"),
+            datasets: [{ data: data.map(d => nv(d.count)), backgroundColor: COLS, borderWidth: 3, borderColor: "#161b22", hoverOffset: 10 }],
+          },
+          plugins: [pctPlug],
+          options: {
+            responsive: true, maintainAspectRatio: false, cutout: "52%",
+            plugins: {
+              legend: {
+                position: "right",
+                labels: {
+                  color: "#ffffff", font: { size: 12, family: "Inter" }, padding: 10, boxWidth: 12,
+                  generateLabels: chart => {
+                    const ds = chart.data.datasets[0];
+                    return chart.data.labels.map((l, i) => {
+                      const pct = total > 0 ? Math.round(nv(ds.data[i]) / total * 100) : 0;
+                      return { text: `${l}  ${pct}%`, fillStyle: COLS[i] || "#8b949e", hidden: false, index: i, lineWidth: 0, fontColor: "#ffffff" };
+                    });
+                  },
+                },
+              },
+              tooltip: {
+                backgroundColor: "#1c2128", titleColor: "#e6edf3", bodyColor: "#8b949e", borderColor: "#30363d", borderWidth: 1, cornerRadius: 8,
+                callbacks: { label: ctx => { const pct = total > 0 ? Math.round(nv(ctx.raw) / total * 100) : 0; return ` ${ctx.label}: ${ctx.raw} (${pct}%)`; } }
+              },
+            },
+          },
+        });
+        return () => { try { inst.current?.destroy(); } catch { } };
+      }, [data]);
+      if (!data?.length) return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#484f58", fontSize: 13 }}>
+          No risk data yet
+        </div>
+      );
+      return <canvas ref={ref} style={{ width: "100%", height: "100%" }} />;
+    });
+
+    /* ══════════════════════════════════
+       BAR CHART
+    ══════════════════════════════════ */
+    const BarChart = memo(function BarChart({ data, isAiToolChart }) {
+      const ref = useRef(), inst = useRef();
+      const C = { ChatGPT: "#3fb950", Copilot: "#58a6ff", Claude: "#a371f7", Gemini: "#d29922", DeepSeek: "#e879f9", Perplexity: "#22d3ee", PopupTest: "#39d353", DashboardTest: "#f85149", Unknown: "#484f58", Others: "#6e7681", ALLOW: "#3fb950", REDACT: "#d29922", BLOCK: "#f85149", ALERT: "#a371f7" };
+      const DEFAULT_TOOLS = ["ChatGPT", "Copilot", "Gemini", "Claude"];
+      useEffect(() => {
+        if (!ref.current) return;
+
+        let toolData = [...(data || [])];
+        if (isAiToolChart) {
+          const foundTools = toolData.map(d => d.tool);
+          DEFAULT_TOOLS.forEach(dt => {
+            if (!foundTools.includes(dt)) {
+              toolData.push({ tool: dt, count: 0 });
+            }
+          });
+        }
+
+        // Sort safely ignoring missing values
+        toolData.sort((a, b) => (b.count || 0) - (a.count || 0));
+
+        const labels = toolData.map(d => d.tool || "Unknown");
+        const counts = toolData.map(d => nv(d.count));
+        const colors = labels.map(l => C[l] || "#484f58");
+        if (inst.current) { try { inst.current.destroy(); } catch { } }
+        inst.current = new Chart(ref.current, {
+          type: "bar",
+          data: { labels, datasets: [{ data: counts, backgroundColor: colors.map(c => c + "bb"), borderColor: colors, borderRadius: 7, borderSkipped: false, maxBarThickness: 52, borderWidth: 1 }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true, position: "bottom", labels: {
+                  color: "#ffffff", font: { size: 11, family: "Inter" }, padding: 14, boxWidth: 10,
+                  generateLabels: chart => chart.data.labels.map((l, i) => ({ text: l, fillStyle: colors[i], hidden: false, index: i, lineWidth: 0, fontColor: "#ffffff" })),
+                }
+              },
+              tooltip: { backgroundColor: "#1c2128", titleColor: "#e6edf3", bodyColor: "#8b949e", borderColor: "#30363d", borderWidth: 1, cornerRadius: 8, titleFont: { family: "Inter" }, bodyFont: { family: "Inter" } },
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: "#ffffff", font: { size: 11, family: "Inter" } } },
+              y: { grid: { color: "rgba(255,255,255,.04)" }, ticks: { color: "#ffffff", font: { size: 11, family: "Inter" } }, beginAtZero: true },
+            },
+          },
+        });
+        return () => { try { inst.current?.destroy(); } catch { } };
+      }, [data]);
+      return <canvas ref={ref} style={{ width: "100%", height: "100%" }} />;
+    });
+
+    /* ══════════════════════════════════
+       BADGE
+    ══════════════════════════════════ */
+    function Badge({ action }) {
+      const c = AC[action] || AC.ALLOW;
+      return (
+        <span className="badge" style={{ background: c.bg, border: `1px solid ${c.bd}`, color: c.tx }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: c.tx, display: "inline-block", flexShrink: 0 }} />
+          {c.l}
+        </span>
+      );
+    }
+
+    /* ══════════════════════════════════
+       CARD HEADER
+    ══════════════════════════════════ */
+    function CH({ icon, title, right, sub }) {
+      return (
+        <div style={{ padding: "14px 18px 12px", borderBottom: "1px solid #21262d", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 15 }}>{icon}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#e6edf3" }}>{title}</span>
+            {right && <span style={{ marginLeft: "auto", fontSize: 11, color: "#6e7681", fontFamily: "'JetBrains Mono',monospace" }}>{right}</span>}
+          </div>
+          {sub && <div style={{ fontSize: 11, color: "#6e7681", marginTop: 3, paddingLeft: 23 }}>{sub}</div>}
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════
+       COMPLIANCE ITEM
+    ══════════════════════════════════ */
+    function Comply({ label, status }) {
+      const ok = status === "Compliant", warn = status === "Needs Review";
+      const cls = ok ? "comply-ok" : warn ? "comply-warn" : "comply-bad";
+      const ic = ok ? "✅" : warn ? "⚠️" : "❌";
+      const col = ok ? "#3fb950" : warn ? "#d29922" : "#f85149";
+      return (
+        <div className={`card ${cls}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", flex: 1, minWidth: 150, borderRadius: 8 }}>
+          <span style={{ fontSize: 16 }}>{ic}</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#e6edf3" }}>{label}</div>
+            <div style={{ fontSize: 11, color: col, fontWeight: 600, marginTop: 2 }}>{ok ? "✓ Compliant" : warn ? "! Needs Review" : "✗ Non-Compliant"}</div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════
+       TEST PANEL
+    ══════════════════════════════════ */
+    function TestPanel({ userId, onDone }) {
+      const [prompt, setPrompt] = useState("");
+      const [busy, setBusy] = useState(false);
+      const [result, setResult] = useState(null);
+      const run = async () => {
+        if (!prompt.trim()) return;
+        setBusy(true); setResult(null);
+        try {
+          const r = await fetch(`${API}/api/v1/prompts`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, tool: "DashboardTest", browserName: "Dashboard", prompt: prompt.trim(), timestamp: new Date().toISOString().slice(0, 19) })
+          });
+          setResult(await r.json()); if (onDone) onDone();
+        } catch { setResult({ action: "ERROR", reason: "Connection failed." }); }
+        setBusy(false);
+      };
+      const c = result ? (AC[result.action] || AC.ALLOW) : null;
+      return (
+        <div className="card fade-up" style={{ padding: 24, maxWidth: 640 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 9, background: "rgba(56,139,253,.12)", border: "1px solid rgba(56,139,253,.25)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18
+            }}>🧪</div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#e6edf3" }}>Test a Prompt</div>
+              <div style={{ fontSize: 11, color: "#6e7681" }}>Run a prompt through the security engine in real-time</div>
+            </div>
+          </div>
+          <textarea value={prompt} onChange={e => setPrompt(e.target.value)}
+            placeholder={"Try these:\n• SELECT * FROM users WHERE password='admin'\n• My SSN is 123-45-6789\n• AWS_KEY=AKIAIOSFODNN7EXAMPLE\n• How do I reverse a string in Python?"}
+            style={{
+              width: "100%", background: "#0d1117", border: "1px solid #30363d", color: "#c9d1d9", borderRadius: 8,
+              padding: "12px 14px", fontSize: 13, minHeight: 120, resize: "vertical", outline: "none",
+              fontFamily: "'Inter',sans-serif", lineHeight: 1.7, transition: "border-color .2s"
+            }}
+            onFocus={e => e.target.style.borderColor = "#388bfd"} onBlur={e => e.target.style.borderColor = "#30363d"} />
+          <button className="btn btn-primary" onClick={run} disabled={busy || !prompt.trim()}
+            style={{
+              marginTop: 12, padding: "11px 24px", fontSize: 13,
+              background: (!busy && prompt.trim()) ? "linear-gradient(135deg,#1f6feb,#388bfd)" : "rgba(255,255,255,.04)",
+              boxShadow: (!busy && prompt.trim()) ? "0 0 16px rgba(56,139,253,.3)" : "none",
+              opacity: (!busy && prompt.trim()) ? 1 : .4
+            }}>
+            {busy ? "⏳ Analyzing…" : "⚡ Check Prompt"}
+          </button>
+          {result && c && (
+            <div className="fade-up" style={{ marginTop: 18, padding: "16px 18px", borderRadius: 9, background: c.bg, border: `1px solid ${c.bd}` }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: c.tx, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                <span>{result.action === "ALLOW" ? "✅" : result.action === "BLOCK" ? "🚫" : result.action === "REDACT" ? "✏️" : "⚠️"}</span>
+                <span>{result.action}</span>
+                {result.riskScore != null && <span style={{ marginLeft: "auto", fontSize: 12, color: "#8b949e", fontWeight: 500 }}>Risk: <strong style={{ color: c.tx }}>{result.riskScore}/100</strong></span>}
+              </div>
+              <div style={{ fontSize: 12, color: "#8b949e", lineHeight: 1.7 }}>{result.reason}
+                {result.processingTimeMs != null && <span style={{ marginLeft: 8, opacity: .6, fontFamily: "'JetBrains Mono',monospace" }}>· {result.processingTimeMs}ms</span>}
+              </div>
+              {result.action === "REDACT" && result.redactedPrompt && (
+                <div style={{
+                  marginTop: 10, background: "#0d1117", border: "1px solid #21262d", borderRadius: 7, padding: "9px 12px",
+                  color: "#67e8f9", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, wordBreak: "break-all"
+                }}>
+                  <span style={{ color: "#484f58", marginRight: 8 }}>REDACTED:</span>{result.redactedPrompt}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════
+       DASHBOARD
+    ══════════════════════════════════ */
+    function Dashboard({ user, onLogout }) {
+      const { isDesktop, isTablet, isMobile } = useBreakpoint();
+      const [data, setData] = useState({ summary: {}, tools: [], risks: [], logs: [], users: [] });
+      const [loading, setLoading] = useState(false);
+      const [tab, setTab] = useState("overview");
+      const [filter, setFilter] = useState("ALL");
+      const filterRef = useRef("ALL");
+      const userRef = useRef(user);
+      useEffect(() => { filterRef.current = filter; }, [filter]);
+      useEffect(() => { userRef.current = user; }, [user]);
+
+      const load = useCallback(async () => {
+        setLoading(true);
+        try {
+          const u = userRef.current, f = filterRef.current;
+          const isA = u.role === "ADMIN";
+          const logsUrl = isA && f === "ALL"
+            ? `${API}/api/analytics/recent-logs?limit=200`
+            : `${API}/api/analytics/my-prompts?userId=${f === "ALL" ? u.userId : f}&limit=200`;
+          const [sum, tools, risks, logs, users] = await Promise.all([
+            fetch(`${API}/api/analytics/risk-summary`).then(r => r.json()).catch(() => ({})),
+            fetch(`${API}/api/analytics/tool-usage`).then(r => r.json()).catch(() => []),
+            fetch(`${API}/api/analytics/risk-breakdown`).then(r => r.json()).catch(() => []),
+            fetch(logsUrl).then(r => r.json()).catch(() => []),
+            isA ? fetch(`${API}/api/analytics/users`).then(r => r.json()).catch(() => []) : Promise.resolve([]),
+          ]);
+          setData({
+            summary: typeof sum === "object" && !Array.isArray(sum) ? sum : {},
+            tools: Array.isArray(tools) ? tools : [],
+            risks: Array.isArray(risks) ? risks : [],
+            logs: Array.isArray(logs) ? logs : [],
+            users: Array.isArray(users) ? users : [],
+          });
+        } catch (e) { console.error(e); }
+        setLoading(false);
+      }, []);
+      useEffect(() => { load(); }, []);
+      const handleFilter = useCallback(val => { filterRef.current = val; setFilter(val); load(); }, [load]);
+
+      const { summary: S, tools, risks, logs, users } = data;
+      const isA = user.role === "ADMIN";
+      const safe = nv(S.allowedPrompts);
+      const red = nv(S.redactedPrompts);
+      const blk = nv(S.blockedPrompts);
+      const crit = nv(S.alertedPrompts);
+      const tot = nv(S.totalPrompts);
+
+      /* For USER view: count only their own logs */
+      const userTot = logs.length;
+      const userSafe = logs.filter(l => l.action === "ALLOW").length;
+      const userRed = logs.filter(l => l.action === "REDACT").length;
+      const userBlk = logs.filter(l => l.action === "BLOCK").length;
+      const userCrit = logs.filter(l => l.action === "ALERT").length;
+
+      const displaySafe = isA ? safe : userSafe;
+      const displayRed = isA ? red : userRed;
+      const displayBlk = isA ? blk : userBlk;
+      const displayCrit = isA ? crit : userCrit;
+      const displayTot = isA ? tot : userTot;
+      const br = displayTot > 0 ? Math.round(displayBlk / displayTot * 100) : 0;
+
+      const comply = [
+        { label: "GDPR", status: br < 15 ? "Compliant" : "Needs Review" },
+        { label: "ISO 27001", status: "Compliant" },
+        { label: "DPDP Act", status: displayRed > 0 ? "Compliant" : "Needs Review" },
+        { label: "SOC 2", status: "Compliant" },
+      ];
+
+      const TABS = isA
+        ? [{ k: "overview", l: "Overview" }, { k: "logs", l: "All Logs" }, { k: "analytics", l: "Analytics" }, { k: "test", l: "Test Prompt" }]
+        : [{ k: "overview", l: "Overview" }, { k: "logs", l: "My Logs" }, { k: "test", l: "Test Prompt" }];
+
+      const px = isMobile ? 12 : 20;
+      const gap = 12;
+
+      /* Stat grid: admin gets 7 cols (6 stats + total), user gets 5 */
+      const adminStatCols = isMobile ? "repeat(2,1fr)" : isTablet ? "repeat(4,1fr)" : "repeat(7,1fr)";
+      const userStatCols = isMobile ? "repeat(2,1fr)" : isTablet ? "repeat(3,1fr)" : "repeat(5,1fr)";
+      const statCols = isA ? adminStatCols : userStatCols;
+
+      return (
+        <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#0d1117", overflow: "hidden" }}>
+
+          {/* ══ NAV ══ */}
+          <nav style={{
+            flexShrink: 0, zIndex: 100,
+            background: "rgba(13,17,23,.95)", backdropFilter: "blur(20px)",
+            borderBottom: "1px solid #21262d", minHeight: 52,
+            display: "flex", alignItems: "center", flexWrap: "wrap",
+            padding: `0 ${px}px`, boxShadow: "0 1px 16px rgba(0,0,0,.5)"
+          }}>
+
+            {/* Brand */}
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginRight: 14, flexShrink: 0 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg,#1f6feb,#a371f7)",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15,
+                boxShadow: "0 0 14px rgba(31,111,235,.4)"
+              }}>🛡️</div>
+              <span style={{ fontSize: 14, fontWeight: 800, color: "#e6edf3", letterSpacing: "-.3px" }}>PromptGuard</span>
+              <span style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "2px 7px", borderRadius: 4,
+                background: isA ? "rgba(163,113,247,.15)" : "rgba(56,139,253,.12)",
+                color: isA ? "#a371f7" : "#58a6ff",
+                border: `1px solid ${isA ? "rgba(163,113,247,.3)" : "rgba(56,139,253,.25)"}`
+              }}>
+                {isA ? "ADMIN" : "USER"}
+              </span>
+            </div>
+
+            {!isMobile && <>
+              <div style={{ width: 1, height: 18, background: "#21262d", marginRight: 14, flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: "#484f58", marginRight: 18, flexShrink: 0, whiteSpace: "nowrap" }}>Enterprise AI Security Dashboard</span>
+            </>}
+
+            {!isMobile && (
+              <div style={{ display: "flex", gap: 2 }}>
+                {TABS.map(t => (
+                  <button key={t.k} onClick={() => setTab(t.k)} className={`nav-tab${tab === t.k ? " active" : ""}`}>{t.l}</button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: isMobile ? 7 : 9 }}>
+              {!isMobile && <LiveClock />}
+              <style>{`@keyframes spin-refresh{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}.refresh-spinning{animation:spin-refresh .7s linear}`}</style>
+              <button className="btn btn-ghost" onClick={e => { const ic = e.currentTarget.querySelector('.ref-ic'); if (ic) { ic.classList.add('refresh-spinning'); setTimeout(() => ic.classList.remove('refresh-spinning'), 700); } load(); }}
+                style={{ padding: "4px 11px", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <span className="ref-ic" style={{ display: "inline-block", fontSize: 13, lineHeight: 1 }}>↻</span>
+                {!isMobile && <span>Refresh</span>}
+              </button>
+              {!isMobile && (
+                <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 9px", background: "rgba(46,160,67,.08)", border: "1px solid rgba(46,160,67,.2)", borderRadius: 20 }}>
+                  <div className="live-dot" style={{ width: 5, height: 5, borderRadius: "50%", background: "#3fb950" }} />
+                  <span style={{ fontSize: 10, color: "#3fb950", fontWeight: 700, letterSpacing: "1px" }}>LIVE</span>
+                </div>
+              )}
+              <div style={{
+                padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                background: isA ? "rgba(163,113,247,.12)" : "rgba(56,139,253,.1)",
+                border: `1px solid ${isA ? "rgba(163,113,247,.3)" : "rgba(56,139,253,.25)"}`,
+                color: isA ? "#a371f7" : "#58a6ff"
+              }}>
+                {isA ? "👑" : "👤"} {isMobile ? user.userId.split("-")[0] : user.userId}
+              </div>
+              <button className="btn btn-danger" onClick={onLogout}
+                style={{ padding: "4px 11px", fontSize: 11 }}>{isMobile ? "Exit" : "Sign Out"}</button>
+            </div>
+
+            {isMobile && (
+              <div style={{ width: "100%", display: "flex", gap: 4, padding: "7px 0 9px", overflowX: "auto", borderTop: "1px solid #21262d", marginTop: 8 }}>
+                {TABS.map(t => (
+                  <button key={t.k} onClick={() => setTab(t.k)} className={`nav-tab${tab === t.k ? " active" : ""}`}
+                    style={{ flexShrink: 0 }}>{t.l}</button>
+                ))}
+              </div>
+            )}
+          </nav>
+
+          {/* ══ CONTENT ══ */}
+          {tab === "overview" ? (
+            /* ── OVERVIEW: fixed viewport, no scroll ── */
+            <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", padding: "10px 16px 8px", gap: 8, boxSizing: "border-box" }}>
+
+              {/* ── STAT CARDS ROW (compact) ── */}
+              <div style={{ display: "grid", gap: 6, flexShrink: 0, gridTemplateColumns: isA ? (isMobile ? "repeat(2,1fr)" : isTablet ? "repeat(4,1fr)" : "repeat(7,1fr)") : (isMobile ? "repeat(2,1fr)" : "repeat(5,1fr)") }}>
+                {[
+                  { label: "Safe Prompts", val: displaySafe, color: "#3fb950", bg: "linear-gradient(135deg,#0f2318,#0d1a10)", border: "#2ea04355", icon: "✅" },
+                  { label: "Redacted", val: displayRed, color: "#d29922", bg: "linear-gradient(135deg,#1e1608,#17120a)", border: "#bb800955", icon: "✏️" },
+                  { label: "Blocked", val: displayBlk, color: "#f85149", bg: "linear-gradient(135deg,#1e0e0d,#160c0c)", border: "#da363355", icon: "🚫" },
+                  { label: "Critical", val: displayCrit, color: "#a371f7", bg: "linear-gradient(135deg,#160e22,#110c1a)", border: "#6e40c955", icon: "⚡" },
+                  { label: isA ? "Total Prompts" : "My Prompts", val: displayTot, color: "#fb8f44", bg: "linear-gradient(135deg,#1e1208,#170e06)", border: "#e3662055", icon: "📊" },
+                  ...(isA ? [{ label: "Active Users", val: users.length, color: "#58a6ff", bg: "linear-gradient(135deg,#0d1a2e,#0a1420)", border: "#1f6feb55", icon: "👥" }] : []),
+                  ...(isA ? [{ label: "AI Tools Used", val: tools.length, color: "#39d353", bg: "linear-gradient(135deg,#0b1c10,#09140c)", border: "#2ea04355", icon: "🤖" }] : []),
+                ].map(({ label, val, color, bg, border, icon }) => (
+                  <div key={label} className="card-hover fade-up" style={{
+                    background: bg, border: `1px solid ${border}`,
+                    borderRadius: 9, padding: "8px 12px 7px",
+                    display: "flex", flexDirection: "column", gap: 3
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ fontSize: 13 }}>{icon}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: ".3px" }}>{label}</span>
+                    </div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: "#f0f6fc", lineHeight: 1, letterSpacing: "-1px", fontVariantNumeric: "tabular-nums" }}>{val.toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── MAIN GRID ── */}
+              <div style={{ flex: 1, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "62% 38%", gap: 8, minHeight: 0 }}>
+
+                {/* LEFT COLUMN */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 0 }}>
+
+                  {/* Prompt Activity */}
+                  <div className="card fade-up" style={{ flex: "0 0 55%", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", borderRadius: 10 }}>
+                    <div style={{ padding: "10px 16px 8px", borderBottom: "1px solid #21262d", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>📈</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#e6edf3" }}>Prompt Activity</span>
+                      <span style={{ marginLeft: "auto", fontSize: 11, color: "#484f58", fontWeight: 500 }}>Last 7 days</span>
+                    </div>
+                    <div style={{ flex: 1, padding: "8px 14px 10px", minHeight: 0, overflow: "hidden", position: "relative" }}>
+                      <LineChart logs={logs} />
+                    </div>
+                  </div>
+
+                  {/* Recent Alerts */}
+                  <div className="card fade-up" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", borderRadius: 10 }}>
+                    <div style={{ padding: "10px 16px 8px", borderBottom: "1px solid #21262d", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>⚠️</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#e6edf3" }}>Recent Alerts</span>
+                      <span style={{ marginLeft: "auto", fontSize: 11, color: "#484f58" }}>{logs.length} total</span>
+                    </div>
+                    {logs.length === 0 ? (
+                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8, color: "#484f58" }}>
+                        <span style={{ fontSize: 24 }}>🎉</span>
+                        <span style={{ fontSize: 12, color: "#6e7681" }}>No events yet — send some prompts!</span>
+                      </div>
+                    ) : (
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
+                          <colgroup>
+                            <col style={{ width: "20%" }} />
+                            {isA && <col style={{ width: "18%" }} />}
+                            <col style={{ width: isA ? "22%" : "28%" }} />
+                            <col style={{ width: "18%" }} />
+                            <col style={{ width: "18%" }} />
+                          </colgroup>
+                          <thead>
+                            <tr style={{ background: "rgba(0,0,0,.4)" }}>
+                              {(isA ? ["Timestamp", "User", "Risk Type", "Action", "Browser"] : ["Timestamp", "Risk Type", "Action", "Browser"]).map(h => (
+                                <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "#6e7681", fontWeight: 600, fontSize: 10, letterSpacing: ".7px", textTransform: "uppercase", borderBottom: "1px solid #21262d", whiteSpace: "nowrap" }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                        </table>
+                        <div className="scroll-y" style={{ flex: 1, overflowY: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
+                            <colgroup>
+                              <col style={{ width: "20%" }} />
+                              {isA && <col style={{ width: "18%" }} />}
+                              <col style={{ width: isA ? "22%" : "28%" }} />
+                              <col style={{ width: "18%" }} />
+                              <col style={{ width: "18%" }} />
+                            </colgroup>
+                            <tbody>
+                              {logs.map((l, i) => (
+                                <tr key={i} className="tr-hover" style={{ borderBottom: "1px solid rgba(255,255,255,.035)" }}>
+                                  <td style={{ padding: "8px 12px", color: "#6e7681", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmtAge(l.timestamp || l.created_at)}</td>
+                                  {isA && <td style={{ padding: "8px 12px", color: "#79c0ff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.userId || l.user_id || "—"}</td>}
+                                  <td style={{ padding: "8px 12px" }}>
+                                    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 5, fontSize: 10, fontWeight: 700, background: "rgba(255,255,255,.07)", color: "#c9d1d9", whiteSpace: "nowrap" }}>
+                                      {l.highestRiskType || l.highest_risk_type || "NONE"}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: "8px 12px" }}><Badge action={l.action} /></td>
+                                  <td style={{ padding: "8px 12px", color: "#3fb950", fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.browserName || l.browser_name || "—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 0 }}>
+
+                  {/* Top Risk Categories */}
+                  <div className="card fade-up" style={{ flex: "0 0 55%", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", borderRadius: 10 }}>
+                    <div style={{ padding: "10px 16px 8px", borderBottom: "1px solid #21262d", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>⚙️</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#e6edf3" }}>Top Risk Categories</span>
+                    </div>
+                    <div style={{ flex: 1, padding: "8px 12px 10px", minHeight: 0, overflow: "hidden", position: "relative" }}>
+                      <DonutChart data={risks} />
+                    </div>
+                  </div>
+
+                  {/* AI Tool Usage */}
+                  <div className="card fade-up" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", borderRadius: 10 }}>
+                    <div style={{ padding: "10px 16px 8px", borderBottom: "1px solid #21262d", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>⊞</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#e6edf3" }}>AI Tool Usage</span>
+                    </div>
+                    <div style={{ flex: 1, padding: "8px 12px 10px", minHeight: 0, overflow: "hidden", position: "relative" }}>
+                      <BarChart data={tools} isAiToolChart={true} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── COMPLIANCE: ultra-thin single strip ── */}
+              <div className="fade-up" style={{
+                flexShrink: 0, padding: "5px 14px",
+                background: "rgba(33,38,45,.7)", borderRadius: 8,
+                border: "1px solid #21262d",
+                display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap"
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#6e7681", marginRight: 4, whiteSpace: "nowrap" }}>📋 Compliance:</span>
+                {comply.map(c => (
+                  <span key={c.label} style={{
+                    display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 10px", borderRadius: 20,
+                    background: c.ok ? "rgba(46,160,67,.12)" : "rgba(210,153,34,.12)",
+                    border: `1px solid ${c.ok ? "rgba(46,160,67,.3)" : "rgba(210,153,34,.3)"}`,
+                    fontSize: 11, fontWeight: 600,
+                    color: c.ok ? "#3fb950" : "#d29922"
+                  }}>
+                    <span>{c.ok ? "✓" : "!"}</span>
+                    <span style={{ color: "#c9d1d9", fontWeight: 700 }}>{c.label}</span>
+                    <span style={{ opacity: .8 }}>{c.ok ? "Compliant" : "Review"}</span>
+                  </span>
+                ))}
+              </div>
+
+            </div>
+          ) : (
+            /* Other tabs: internal scroll */
+            <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+              <div style={{ padding: `${gap}px ${px}px ${gap * 2}px`, display: "flex", flexDirection: "column", gap, maxWidth: 1600, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+
+
+                {/* ────────────────── ALL LOGS ────────────────── */}
+                {tab === "logs" && (
+                  <div className="fade-up">
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+                      <div>
+                        <h1 style={{ fontSize: 18, fontWeight: 700, color: "#e6edf3" }}>
+                          {isA ? "All Audit Logs" : "My Prompt Logs"}
+                        </h1>
+                        <p style={{ fontSize: 12, color: "#6e7681", marginTop: 2 }}>
+                          {isA ? `${logs.length} total records — all users` : `${logs.length} records — your prompts only`}
+                        </p>
+                      </div>
+                      {isA && (
+                        <select value={filter} onChange={e => handleFilter(e.target.value)}
+                          style={{
+                            marginLeft: "auto", background: "#161b22", border: "1px solid #30363d", color: "#c9d1d9",
+                            borderRadius: 8, padding: "7px 12px", fontSize: 12, outline: "none", cursor: "pointer", fontFamily: "inherit"
+                          }}>
+                          <option value="ALL">All Users</option>
+                          {users.map(u => <option key={u.user_id} value={u.user_id}>{u.display_name || u.user_id}</option>)}
+                        </select>
+                      )}
+                    </div>
+                    <div className="card" style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: "rgba(0,0,0,.3)" }}>
+                            {(isA ? ["Time", "User", "Tool", "Browser", "Risk Type", "Score", "Action", "Reason"] :
+                              ["Time", "Tool", "Browser", "Risk Type", "Score", "Action", "Reason"]).map(h => (
+                                <th key={h} style={{
+                                  padding: "10px 14px", textAlign: "left", color: "#6e7681", fontWeight: 600,
+                                  fontSize: 10, letterSpacing: ".8px", textTransform: "uppercase", whiteSpace: "nowrap",
+                                  borderBottom: "1px solid #21262d"
+                                }}>{h}</th>
+                              ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {logs.length === 0 ? (
+                            <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "#484f58" }}>
+                              <div style={{ fontSize: 26, marginBottom: 10 }}>📭</div>
+                              <div style={{ fontSize: 13, color: "#6e7681" }}>No logs yet.</div>
+                            </td></tr>
+                          ) : logs.map((l, i) => (
+                            <tr key={i} className="tr-hover" style={{ borderBottom: "1px solid rgba(255,255,255,.025)" }}>
+                              <td style={{ padding: "9px 14px", color: "#6e7681", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, whiteSpace: "nowrap" }}>{fmtAge(l.timestamp || l.created_at)}</td>
+                              {isA && <td style={{ padding: "9px 14px", color: "#79c0ff", fontWeight: 600 }}>{l.userId || l.user_id || "—"}</td>}
+                              <td style={{ padding: "9px 14px" }}>
+                                <span style={{
+                                  background: "rgba(56,139,253,.1)", border: "1px solid rgba(56,139,253,.2)",
+                                  color: "#58a6ff", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 600
+                                }}>{l.tool || "—"}</span>
+                              </td>
+                              <td style={{ padding: "9px 14px", color: "#3fb950", fontWeight: 600 }}>{l.browserName || l.browser_name || "—"}</td>
+                              <td style={{ padding: "9px 14px" }}>
+                                <span style={{
+                                  display: "inline-block", padding: "2px 7px", borderRadius: 4, fontSize: 10, fontWeight: 600,
+                                  letterSpacing: ".5px", background: "rgba(255,255,255,.05)", color: "#c9d1d9"
+                                }}>
+                                  {l.highestRiskType || l.highest_risk_type || "NONE"}
+                                </span>
+                              </td>
+                              <td style={{
+                                padding: "9px 14px", fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, textAlign: "center",
+                                color: nv(l.riskScore ?? l.risk_score) > 70 ? "#f85149" : nv(l.riskScore ?? l.risk_score) > 40 ? "#d29922" : "#3fb950"
+                              }}>
+                                {l.riskScore ?? l.risk_score ?? 0}
+                              </td>
+                              <td style={{ padding: "9px 14px" }}><Badge action={l.action} /></td>
+                              <td style={{ padding: "9px 14px", color: "#6e7681", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.actionReason || l.action_reason || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* ────────────────── ANALYTICS ────────────────── */}
+                {tab === "analytics" && (
+                  <div className="fade-up">
+                    <div style={{ marginBottom: 16 }}>
+                      <h1 style={{ fontSize: 18, fontWeight: 700, color: "#e6edf3" }}>Analytics</h1>
+                      <p style={{ fontSize: 12, color: "#6e7681", marginTop: 2 }}>Deep dive into your AI security posture</p>
+                    </div>
+                    {/* 5 stat cards */}
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : isTablet ? "repeat(3,1fr)" : "repeat(5,1fr)", gap, marginBottom: gap }}>
+                      <StatCard delay={1} label="Safe Prompts" value={displaySafe.toLocaleString()} icon="✅" accentColor="#3fb950" borderColor="#2ea04322" bgColor="#0f1e13" />
+                      <StatCard delay={2} label="Redacted" value={displayRed.toLocaleString()} icon="✏️" accentColor="#d29922" borderColor="#bb800922" bgColor="#1a150a" />
+                      <StatCard delay={3} label="Blocked" value={displayBlk.toLocaleString()} icon="🚫" accentColor="#f85149" borderColor="#da363322" bgColor="#1a0e0e" />
+                      <StatCard delay={4} label="Critical Incidents" value={displayCrit.toLocaleString()} icon="⚡" accentColor="#a371f7" borderColor="#6e40c922" bgColor="#130d1e" />
+                      <StatCard delay={5} label="Total Prompts" value={displayTot.toLocaleString()} icon="📊" accentColor="#fb8f44" borderColor="#e3662022" bgColor="#1a1108" sub={`Block rate: ${br}%`} />
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap }}>
+                      <div className="card" style={{ display: "flex", flexDirection: "column" }}>
+                        <CH icon="📈" title="Prompt Activity (7 days)" />
+                        <div style={{ padding: "10px 18px 16px", height: isMobile ? 200 : 260, position: "relative" }}><LineChart logs={logs} /></div>
+                      </div>
+                      <div className="card" style={{ display: "flex", flexDirection: "column" }}>
+                        <CH icon="⚙️" title="Top Risk Categories" />
+                        <div style={{ padding: "10px 18px 16px", height: isMobile ? 200 : 260, position: "relative" }}><DonutChart data={risks} /></div>
+                      </div>
+                      <div className="card" style={{ display: "flex", flexDirection: "column" }}>
+                        <CH icon="🤖" title="AI Tool Usage" />
+                        <div style={{ padding: "10px 18px 16px", height: isMobile ? 200 : 260, position: "relative" }}><BarChart data={tools} isAiToolChart={true} /></div>
+                      </div>
+                      <div className="card" style={{ display: "flex", flexDirection: "column" }}>
+                        <CH icon="📊" title="Actions Distribution" />
+                        <div style={{ padding: "10px 18px 16px", height: isMobile ? 200 : 260, position: "relative" }}>
+                          <BarChart data={[{ tool: "ALLOW", count: displaySafe }, { tool: "REDACT", count: displayRed }, { tool: "BLOCK", count: displayBlk }, { tool: "ALERT", count: displayCrit }]} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ────────────────── TEST ────────────────── */}
+                {tab === "test" && (
+                  <div className="fade-up">
+                    <div style={{ marginBottom: 16 }}>
+                      <h1 style={{ fontSize: 18, fontWeight: 700, color: "#e6edf3" }}>Test Prompt</h1>
+                      <p style={{ fontSize: 12, color: "#6e7681", marginTop: 2 }}>Submit a prompt and see the real-time security analysis</p>
+                    </div>
+                    <TestPanel userId={user.userId} onDone={load} />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <footer style={{
+            flexShrink: 0,
+            padding: "8px 20px", borderTop: "1px solid #21262d",
+            display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8
+          }}>
+            <span style={{ fontSize: 11, color: "#484f58" }}>PromptGuard v1.0 · Enterprise AI Security</span>
+            <span style={{ fontSize: 11, color: "#484f58", fontFamily: "'JetBrains Mono',monospace" }}>{new Date().toLocaleDateString()}</span>
+          </footer>
+        </div>
+      );
+    }
+
+    function App() {
+      const [user, setUser] = useState(null);
+      if (!user) return <Login onLogin={setUser} />;
+      return <Dashboard user={user} onLogout={() => setUser(null)} />;
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+
+</html>
